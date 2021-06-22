@@ -1,0 +1,62 @@
+version: '3.9'
+
+services:
+    proxy:
+        container_name: proxy-host
+        stdin_open: true
+        build:
+            context: ./proxy
+            dockerfile: ./dev.Dockerfile
+        # env_file:
+        #   - ./nginx.env
+        ports:
+            - "$HTTP_PORT:80"
+            - "$HTTPS_PORT:443"
+            - "4444:443"
+        networks:
+            - main_net
+        depends_on: 
+            - strapi
+
+    strapi:
+        container_name: strapi_host
+        image: strapi/strapi
+        restart: unless-stopped
+        volumes:
+            - strapi_app_vol:/srv/app
+        environment:
+            - NODE_ENV=production
+            - DATABASE_CLIENT=postgres
+            - DATABASE_HOST=postgres_host
+            - DATABASE_PORT=${STRAPI_DB_PORT}
+            - DATABASE_NAME=${STRAPI_DB_NAME}
+            - DATABASE_USERNAME=${STRAPI_DB_USER}
+            - DATABASE_PASSWORD=${STRAPI_DB_PASSWORD}
+        ports:
+            - "${STRAPI_EXPOSED_PORT}:1337"
+        depends_on:
+            - db
+        networks:
+            - main_net
+
+    db:
+        container_name: postgres_host
+        image: postgres
+        restart: unless-stopped
+        volumes:
+            - db_vol:/var/lib/postgresql/data
+        environment:
+            - POSTGRES_USER=${STRAPI_DB_USER}
+            - POSTGRES_PASSWORD=${STRAPI_DB_PASSWORD}
+            - POSTGRES_DB=${STRAPI_DB_NAME}
+        networks:
+            - main_net
+        ports:
+            - "1$STRAPI_DB_PORT:$STRAPI_DB_PORT"
+
+volumes:
+    db_vol:
+    strapi_app_vol:
+
+networks:
+    main_net:
